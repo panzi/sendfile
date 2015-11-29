@@ -120,42 +120,36 @@ bool parse_size_p(const char *str, uint64_t *size)
 	return true;
 }
 
-bool parse_size(const char *str, size_t *size)
-{
+bool parse_size(const char *str, size_t *size) {
 	uint64_t sz = 0;
-	if (strcasecmp("max", str) == 0)
-	{
-		if (size) *size = SIZE_MAX;
-		return true;
+	if (!parse_size_p(str, &sz)) {
+		return false;
 	}
-	else if (parse_size_p(str, &sz))
-	{
-		/* might be bigger than max. size_t on 32bit plattforms */
-		if (sz <= SIZE_MAX) {
-			if (size) *size = (size_t)sz;
-			return true;
-		}
+
+	/* might be bigger than max. size_t on 32bit plattforms */
+	if (sz > SIZE_MAX) {
 		errno = ERANGE;
+		return false;
 	}
-	return false;
+
+	if (size) *size = (size_t)sz;
+
+	return true;
 }
 
-bool parse_offset(const char *str, off_t *size)
-{
+bool parse_offset(const char *str, off_t *size) {
 	uint64_t sz = 0;
-	if (strcasecmp("max", str) == 0)
-	{
-		if (size) *size = INT64_MAX;
-		return true;
+	if (!parse_size_p(str, &sz)) {
+		return false;
 	}
-	else if (parse_size_p(str, &sz))
-	{
-		/* offset is always signed 64bit (because of compiler flags) */
-		if (sz <= INT64_MAX) {
-			if (size) *size = sz;
-			return true;
-		}
+
+	/* offset is always signed 64bit (because of compiler flags) */
+	if (sz > INT64_MAX) {
 		errno = ERANGE;
+		return false;
 	}
-	return false;
+
+	if (size) *size = sz;
+
+	return true;
 }

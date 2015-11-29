@@ -7,6 +7,8 @@
 #include <getopt.h>
 #include <fcntl.h>
 #include <sys/sendfile.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "parse.h"
 
@@ -27,6 +29,8 @@ int main(int argc, char *argv[]) {
 	int out_fd = -1;
 	off_t  offset = 0;
 	size_t count  = SIZE_MAX;
+	bool offset_set = false;
+	bool count_set  = false;
 	const char *in_file  = NULL;
 	const char *out_file = NULL;
 
@@ -53,6 +57,7 @@ int main(int argc, char *argv[]) {
 				perror(optarg);
 				return 1;
 			}
+			offset_set = true;
 			break;
 
 		case 'c':
@@ -60,6 +65,7 @@ int main(int argc, char *argv[]) {
 				perror(optarg);
 				return 1;
 			}
+			count_set = true;
 			break;
 
 		case '?':
@@ -101,10 +107,30 @@ int main(int argc, char *argv[]) {
 		out_fd   = STDOUT_FILENO;
 	}
 
+	if (!count_set) {
+		struct stat st;
+
+		if (fstat(in_fd, &st) != 0) {
+			perror(in_file);
+			goto error;
+		}
+
+		if (!offset_set) {
+			offset = lseek(in_fd, 0, SEEK_CUR);
+
+			if (offset < 0) {
+				perror(in_file);
+				goto error;
+			}
+		}
+
+		count = st.st_size - offset;
+	}
+
 	ssize_t sent = sendfile(out_fd, in_fd, &offset, count);
 
 	if (sent < 0) {
-		perror(out_file);
+		perror("sendfile");
 		goto error;
 	}
 
